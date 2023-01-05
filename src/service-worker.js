@@ -70,3 +70,48 @@ self.addEventListener('message', (event) => {
 });
 
 // Any other custom service worker logic can go here.
+
+// self references to Service Worker.
+self.addEventListener('install', async (event) => {
+  const cache = await caches.open('cache');
+
+  // se guardan las referencias a las dependencias a instalar en cache
+  //Se guardan todos los recursos necesarios para correr la aplicacion de React
+  await cache.addAll([
+    "https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/css/bootstrap.min.css",
+    "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.12.0-2/css/all.min.css",
+    '/favicon.ico'
+  ])
+});
+
+
+// http://localhost:4000/api/events
+
+const apiOfflineFallbacks = ["http://localhost:4000/api/auth/renew", "http://localhost:4000/api/events"]
+
+self.addEventListener('fetch', (event) => {
+  // console.log('fetchiing')  
+
+
+  if (!apiOfflineFallbacks.includes(event.request.url)) return
+
+  const resp = fetch(event.request).then((response) => {
+
+    if (!response) {
+      return caches.match(event.request)
+    }
+    // Save in cache the response
+    caches.open('cache-dynamic').then((cache) => cache.put(event.request, response));
+
+    return response.clone()
+  }).catch((err) => {
+    console.log("offline response");
+    console.log(err)
+    return caches.match(event.request)
+  })
+
+  event.respondWith(resp)
+
+});
+
+
